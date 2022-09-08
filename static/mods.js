@@ -236,7 +236,7 @@ const loadAndMountGameData = async () => {
     else Module.print("Loaded IDBFS contents");
     syncResolve();
   });
-  mounted = true
+  mounted = true;
 
   await syncPromise;
 
@@ -377,7 +377,12 @@ function skipRun() {
   loadModule("menu");
 }
 
+const getHost = () => {
+  const host = window.location.host;
+  return `wsproxy://${host}:3200/`;
+};
+
 Module.preInit = [skipRun];
 Module.websocket = [];
-Module.websocket.url = "wsproxy://localhost:3200/";
+Module.websocket.url = getHost();
 ENV = [];
