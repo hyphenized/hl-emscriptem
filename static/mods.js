@@ -1,8 +1,9 @@
 var zipMods = [];
 var pkgMods = [];
 
-window.fs = BrowserFS.BFSRequire("fs");
-window.Buffer = BrowserFS.BFSRequire("buffer").Buffer;
+let _fs = BrowserFS.BFSRequire("fs");
+let _path = BrowserFS.BFSRequire("path");
+let Buffer = BrowserFS.BFSRequire("buffer").Buffer;
 
 zipMods = [["hldm.zip", "HLDM (64M)", 64654514]];
 
@@ -33,10 +34,41 @@ if (!ArrayBuffer["isView"]) {
 
 showElement("optionsTitle", false);
 
+async function fetchZIP(packageName, cb) {
+  const response = await fetch(packageName);
+  const reader = response.body.getReader();
+  const chunks = [];
+
+  const contentLength = +response.headers.get("Content-Length");
+  let received = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      break;
+    }
+    chunks.push(value);
+    received += value.length;
+    if (Module["setStatus"])
+      Module["setStatus"](
+        "Downloading data... (" + received + "/" + contentLength + ")"
+      );
+  }
+
+  const bytes = new Uint8Array(received);
+
+  chunks.reduce((pos, chunk) => {
+    bytes.set(chunk, pos);
+    return pos + chunk.length;
+  }, 0);
+
+  return bytes.buffer;
+}
+
 function prepareSelects() {}
 
 try {
-  mem = Math.round(window.location.hash.substring(1));
+  mem = Math.round(window.location.hash.substring(1)) || 150;
 } catch (e) {}
 
 var Module = {
@@ -49,12 +81,7 @@ var Module = {
     return function (text) {
       if (arguments.length > 1)
         text = Array.prototype.slice.call(arguments).join(" ");
-      // These replacements are necessary if you render to raw HTML
-      //text = text.replace(/&/g, "&amp;");
-      //text = text.replace(/</g, "&lt;");
-      //text = text.replace(/>/g, "&gt;");
-      //text = text.replace('\n', '<br>', 'g');
-      //console.log(text);
+
       if (text) myerrorbuf += text + "\n";
       if (element) {
         if (element.value.length > 65536)
@@ -133,7 +160,8 @@ var Module = {
       );
   },
 };
-window.onerror = function (event) {
+
+function handleWindowError(event) {
   if (mounted)
     FS.syncfs(false, function (err) {
       Module.print("Saving IDBFS: " + err);
@@ -146,7 +174,9 @@ window.onerror = function (event) {
   text = text.replace("\n", "<br>", "g");
   Module.setStatus(text);
   Module.print("Exception thrown: " + event);
-};
+}
+
+window.addEventListener("error", handleWindowError);
 
 function haltRun() {}
 
@@ -165,6 +195,99 @@ function showElement(id, show) {
 }
 Module.setStatus("Downloading...");
 
+function fsReadAllFiles(folder) {
+  const files = [];
+
+  function impl(curFolder) {
+    for (const name of FS.readdir(curFolder)) {
+      if (name === "." || name === "..") continue;
+
+      const path = `${curFolder}/${name}`;
+      const { mode, timestamp } = FS.lookupPath(path).node;
+      if (FS.isFile(mode)) {
+        files.push({ path, timestamp });
+      } else if (FS.isDir(mode)) {
+        impl(path);
+      }
+    }
+  }
+
+  impl(folder);
+  return files;
+}
+
+const getUtilPromise = () => {
+  let resolve;
+  const promise = new Promise((r) => (resolve = r));
+  return [promise, resolve];
+};
+
+const loadAndMountGameData = async () => {
+  let dataExists = false;
+  const [syncPromise, syncResolve] = getUtilPromise();
+  const [resultPromise, resultResolve] = getUtilPromise();
+
+  FS.mount(IDBFS, { root: "/" }, "/rodir");
+  FS.syncfs(true, function (err) {
+    if (err) Module.print("Loading IDBFS: " + err);
+    else Module.print("Loaded IDBFS contents");
+    syncResolve();
+  });
+
+  await syncPromise;
+
+  try {
+    // debugger;
+    if (FS.lookupPath("/rodir/valve/config.cfg")) {
+      dataExists = true;
+    }
+  } catch {
+    // FS.unmount("/rodir");
+  }
+
+  if (dataExists) return resultResolve();
+
+  fetchZIP("hldm.zip").then((data) => {
+    FS.mkdir("/zip");
+
+    mfs.mount("/zip", new BrowserFS.FileSystem.ZipFS(Buffer.from(data)));
+
+    FS.mount(new BrowserFS.EmscriptenFS(), { root: "/zip" }, "/zip");
+
+    // FS.mkdir("/setup");
+    // FS.mount(IDBFS, { root: "/" }, "/rodir");
+
+    FS.chdir("/rodir");
+    for (const { path: pathname } of fsReadAllFiles("/zip")) {
+      const _pathname = _path.relative("/zip", pathname);
+      const parentDir = _path.dirname(_pathname);
+
+      const file = FS.readFile(pathname, { encoding: "binary" });
+      try {
+        FS.mkdirTree("/rodir/" + parentDir);
+        FS.writeFile(_pathname, file, { encoding: "binary" });
+      } catch (error) {
+        // console.trace(error)
+        // TODO: NOTIFY NO SPACE AVAILABLE
+      }
+    }
+
+    FS.syncfs(false, function (err) {
+      if (err) Module.print("Loading IDBFS: " + err);
+      else Module.print("Saved game data to IDBFS!");
+      resultResolve();
+    });
+
+    // FS.unmount("/rodir");
+    // FS.rmdir("/setup");
+
+    // FS.mount(IDBFS, { root: "/" }, "/rodir");
+    FS.chdir("/xash/");
+
+    return resultPromise;
+  });
+};
+
 function startXash() {
   showElement("loader1", false);
   showElement("optionsTitle", false);
@@ -172,55 +295,20 @@ function startXash() {
   setupFS();
   Module.arguments = document.getElementById("iArgs").value.split(" ");
   Module.run = run = savedRun;
-  fetchZIP("hldm.zip", savedRun);
 
-  showElement("canvas", true);
+  loadAndMountGameData().then(() => {
+    console.log("runs");
+    savedRun();
 
-  window.addEventListener("beforeunload", function (e) {
-    var confirmationMessage = "Leave the game?";
+    showElement("canvas", true);
 
-    (e || window.event).returnValue = confirmationMessage; //Gecko + IE
-    return confirmationMessage; //Gecko + Webkit, Safari, Chrome etc.
+    window.addEventListener("beforeunload", function (e) {
+      var confirmationMessage = "Leave the game?";
+
+      (e || window.event).returnValue = confirmationMessage; //Gecko + IE
+      return confirmationMessage; //Gecko + Webkit, Safari, Chrome etc.
+    });
   });
-}
-
-function mountZIP(data) {
-  var Buffer = BrowserFS.BFSRequire("buffer").Buffer;
-  mfs.mount("/zip", new BrowserFS.FileSystem.ZipFS(Buffer.from(data)));
-  FS.mount(new BrowserFS.EmscriptenFS(), { root: "/zip" }, "/rodir");
-}
-
-async function fetchZIP(packageName, cb) {
-  const response = await fetch(packageName);
-  const reader = response.body.getReader();
-  const chunks = [];
-
-  const contentLength = +response.headers.get("Content-Length");
-  let received = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-
-    if (done) {
-      break;
-    }
-    chunks.push(value);
-    received += value.length;
-    if (Module["setStatus"])
-      Module["setStatus"](
-        "Downloading data... (" + received + "/" + contentLength + ")"
-      );
-  }
-
-  const bytes = new Uint8Array(received);
-
-  chunks.reduce((pos, chunk) => {
-    bytes.set(chunk, pos);
-    return pos + chunk.length;
-  }, 0);
-
-  const data = bytes.buffer;
-  mountZIP(data);
-  cb();
 }
 
 function setupFS() {
@@ -240,13 +328,11 @@ function setupFS() {
   // 	mounted = true;
   // }
 
-  // if (radioChecked('LocalStorage') && mfs) {
   mfs.mount("/ls", new BrowserFS.FileSystem.LocalStorage());
   FS.mount(new BrowserFS.EmscriptenFS(), { root: "/ls" }, "/xash");
   Module.print("LocalStorage mounted");
-  // }
 
-  FS.chdir("/xash/");
+  // FS.chdir("/xash/");
 }
 
 function skipRun() {
