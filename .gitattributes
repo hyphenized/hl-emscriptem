@@ -2,3 +2,5 @@
 * text=auto
 hldm.zip binary
 hldm.data binary
+*.mdl binary
+*.bmp binary
