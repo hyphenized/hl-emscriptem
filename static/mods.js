@@ -161,22 +161,25 @@ var Module = {
   },
 };
 
-function handleWindowError(event) {
+function handleWindowError(error) {
   if (mounted)
     FS.syncfs(false, function (err) {
       Module.print("Saving IDBFS: " + err);
     });
-  if (("" + event).indexOf("SimulateInfiniteLoop") > 0) return;
-  var text = "Exception thrown: " + event;
+
+  if (("" + error).indexOf("SimulateInfiniteLoop") > 0) {
+    return;
+  }
+  var text = "Exception thrown: " + error;
   text = text.replace(/&/g, "&amp;");
   text = text.replace(/</g, "&lt;");
   text = text.replace(/>/g, "&gt;");
   text = text.replace("\n", "<br>", "g");
   Module.setStatus(text);
-  Module.print("Exception thrown: " + event);
+  Module.print("Exception thrown: " + error);
 }
 
-window.addEventListener("error", handleWindowError);
+window.onerror = handleWindowError;
 
 function haltRun() {}
 
@@ -233,6 +236,7 @@ const loadAndMountGameData = async () => {
     else Module.print("Loaded IDBFS contents");
     syncResolve();
   });
+  mounted = true
 
   await syncPromise;
 
@@ -247,45 +251,44 @@ const loadAndMountGameData = async () => {
 
   if (dataExists) return resultResolve();
 
-  fetchZIP("hldm.zip").then((data) => {
-    FS.mkdir("/zip");
+  const data = await fetchZIP("hldm.zip");
+  FS.mkdir("/zip");
 
-    mfs.mount("/zip", new BrowserFS.FileSystem.ZipFS(Buffer.from(data)));
+  mfs.mount("/zip", new BrowserFS.FileSystem.ZipFS(Buffer.from(data)));
 
-    FS.mount(new BrowserFS.EmscriptenFS(), { root: "/zip" }, "/zip");
+  FS.mount(new BrowserFS.EmscriptenFS(), { root: "/zip" }, "/zip");
 
-    // FS.mkdir("/setup");
-    // FS.mount(IDBFS, { root: "/" }, "/rodir");
+  // FS.mkdir("/setup");
+  // FS.mount(IDBFS, { root: "/" }, "/rodir");
 
-    FS.chdir("/rodir");
-    for (const { path: pathname } of fsReadAllFiles("/zip")) {
-      const _pathname = _path.relative("/zip", pathname);
-      const parentDir = _path.dirname(_pathname);
+  FS.chdir("/rodir");
+  for (const { path: pathname } of fsReadAllFiles("/zip")) {
+    const _pathname = _path.relative("/zip", pathname);
+    const parentDir = _path.dirname(_pathname);
 
-      const file = FS.readFile(pathname, { encoding: "binary" });
-      try {
-        FS.mkdirTree("/rodir/" + parentDir);
-        FS.writeFile(_pathname, file, { encoding: "binary" });
-      } catch (error) {
-        // console.trace(error)
-        // TODO: NOTIFY NO SPACE AVAILABLE
-      }
+    const file = FS.readFile(pathname, { encoding: "binary" });
+    try {
+      FS.mkdirTree("/rodir/" + parentDir);
+      FS.writeFile(_pathname, file, { encoding: "binary" });
+    } catch (error) {
+      // console.trace(error)
+      // TODO: NOTIFY NO SPACE AVAILABLE
     }
+  }
 
-    FS.syncfs(false, function (err) {
-      if (err) Module.print("Loading IDBFS: " + err);
-      else Module.print("Saved game data to IDBFS!");
-      resultResolve();
-    });
-
-    // FS.unmount("/rodir");
-    // FS.rmdir("/setup");
-
-    // FS.mount(IDBFS, { root: "/" }, "/rodir");
-    FS.chdir("/xash/");
-
-    return resultPromise;
+  FS.syncfs(false, function (err) {
+    if (err) Module.print("Loading IDBFS: " + err);
+    else Module.print("Saved game data to IDBFS!");
+    resultResolve();
   });
+
+  // FS.unmount("/rodir");
+  // FS.rmdir("/setup");
+
+  // FS.mount(IDBFS, { root: "/" }, "/rodir");
+  FS.chdir("/xash/");
+
+  return resultPromise;
 };
 
 function startXash() {
