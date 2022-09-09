@@ -35,3 +35,11 @@ Connecting to 0.0.0.0 from the game console will proxy the request through webso
 * Completely revamped "intro" page (memory selection screen)
 * Added 404 page, favicon and README
 * Fixed typo for Hazard Course title
+
+
+# Credits
+
+- galtamirano, for the help with the initial setup & testing
+- mittorn, who made this possible
+- GAly Raffo for the awesome 3d models
+- and the people responsible for this masterpiece
