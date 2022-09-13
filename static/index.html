@@ -208,9 +208,18 @@
 		<div id=zipHider style=display:none><input name=b type=radio id=rZip />ZIP archive from server (slower, but
 			smaller, no IndexedDB cache)</div>
 		<hr>
-		Command-line arguments: <input name=d type=text id=iArgs /><br><br>
+		Player name: <input name="player" type="text" placeholder="Player" /><br><br>
+		Player model: <select name="model">
+			<option value="random" selected>random</option>
+			<option value="gordon">gordon</option>
+		</select>
+		<br><br>
+		
+		Command-line arguments: <input name="args" type=text id=iArgs /><br><br>
 
-		<input type=button onclick="startXash();return false;" value="Launch Xash3D!" />
+		<button type="submit">
+			Launch Xash3D!
+		</button>
 
 		<br>
 		<hr>
@@ -219,7 +228,7 @@
 	</form>
 
 	<script type='text/javascript' src='browserfs.min.js'></script>
-	<script type='text/javascript' src='mods.js'></script>
+	<script type='text/javascript' src='mods.js?3'></script>
 	<script>
 		(function () {
 			var memoryInitializer = 'xash.html.mem';

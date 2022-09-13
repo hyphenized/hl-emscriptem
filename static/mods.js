@@ -35,7 +35,11 @@ if (!ArrayBuffer["isView"]) {
 showElement("optionsTitle", false);
 
 async function fetchZIP(packageName, cb) {
-  const response = await fetch(packageName);
+  const mirrorURL =
+    "https://raw.githubusercontent.com/hyphenized/hl-emscriptem/master/static/hldm.zip";
+
+  const response = await fetch(mirrorURL).catch(() => fetch(packageName));
+
   const reader = response.body.getReader();
   const chunks = [];
 
@@ -291,16 +295,37 @@ const loadAndMountGameData = async () => {
   return resultPromise;
 };
 
-function startXash() {
+function startXash({ name, model, args }) {
   showElement("loader1", false);
   showElement("optionsTitle", false);
   showElement("fSettings", false);
   setupFS();
-  Module.arguments = document.getElementById("iArgs").value.split(" ");
+  Module.arguments = args.split(" ");
   Module.run = run = savedRun;
 
-  loadAndMountGameData().then(() => {
-    console.log("runs");
+  loadAndMountGameData().then(async () => {
+    // setup name and chosen model
+    const models = [...form.querySelectorAll("[name=model] option")].map(
+      (el) => el.value
+    );
+
+    const chosenModel =
+      model == "random" ? models[(Math.random() * models.length) | 0] : model;
+    const sanitizedName = name.replace(/[^a-zA-Z0-9 _\-?]/g, "?");
+
+    const data = FS.readFile("/rodir/valve/config.cfg", { encoding: "utf8" })
+      .replace(/^model "[a-zA-Z0-9 _\-?]+"$/m, `model "${chosenModel}"`)
+      .replace(/^name "[a-zA-Z0-9 _\-?]+"$/m, `name "${sanitizedName}"`);
+
+    FS.writeFile("/rodir/valve/config.cfg", data, { encoding: "utf8" });
+
+    const [syncing, resolve] = getUtilPromise();
+
+    FS.syncfs(false, () => resolve());
+
+    await syncing;
+
+    console.log("runs", name, model, args);
     savedRun();
 
     showElement("canvas", true);
@@ -324,12 +349,6 @@ function setupFS() {
     mfs = undefined;
     Module.print("Failed to initialize BrowserFS: " + e);
   }
-
-  // if (radioChecked('IndexedDB')) {
-  // 	FS.mount(IDBFS, {}, '/xash');
-  // 	FS.syncfs(true, function (err) { if (err) Module.print('Loading IDBFS: ' + err); });
-  // 	mounted = true;
-  // }
 
   mfs.mount("/ls", new BrowserFS.FileSystem.LocalStorage());
   FS.mount(new BrowserFS.EmscriptenFS(), { root: "/ls" }, "/xash");
@@ -378,7 +397,7 @@ function skipRun() {
 }
 
 const getHost = () => {
-  const host = window.location.host;
+  const host = window.location.hostname;
   return `wsproxy://${host}:3200/`;
 };
 
@@ -386,3 +405,16 @@ Module.preInit = [skipRun];
 Module.websocket = [];
 Module.websocket.url = getHost();
 ENV = [];
+
+const form = document.getElementById("fSettings");
+form.elements["args"].value = new URLSearchParams(location.search).get("args");
+
+form.onsubmit = (e) => {
+  e.preventDefault();
+  console.log("started");
+  startXash({
+    name: form.elements["player"].value || "Player",
+    model: form.elements["model"].value || "random",
+    args: form.elements["args"].value || "",
+  });
+};
