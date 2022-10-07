@@ -437,9 +437,29 @@ form.onsubmit = (e) => {
   });
 };
 
+const modelPicutreOptionTemplate = ({modelName}) => `
+  <div class="model" data-model="${modelName}">
+    <img src="models/player/${modelName}/${modelName}.bmp" alt="${modelName}_Model" class="model__cover" draggable="false">
+  </div>
+`;
+const modelsPicturesContainer = document.getElementById("playermodels");
+const handleModelPictureClick = (e) => {
+  e.stopPropagation()
+  const target = e.target;
+  const element = target.tagName == "IMG" ? target.parentElement : target;
+
+  form.elements["model"].value = element.dataset.model
+}
+
 for (const model of models) {
   const opt = document.createElement("option");
   opt.value = model;
   opt.text = model;
   form.elements["model"].appendChild(opt);
+
+  let dummy = document.createElement('div');
+  dummy.innerHTML = modelPicutreOptionTemplate({modelName: model});
+  dummy.firstElementChild.addEventListener('click', handleModelPictureClick)
+
+  modelsPicturesContainer.prepend(dummy.firstElementChild)
 }
