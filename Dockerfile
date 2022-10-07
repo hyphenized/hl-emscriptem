@@ -106,6 +106,7 @@ COPY nginx.conf /etc/nginx
 USER steam
 # Copy default config
 COPY server/valve valve
+COPY static/models valve/models
 # Copy static files
 COPY static /static
 
