@@ -307,11 +307,20 @@ const loadAndMountGameData = async () => {
 
   // update
   Module.setStatus("Loading models...");
+  function toBuffer(ab) {
+    const buf = Buffer.alloc(ab.byteLength);
+    const view = new Uint8Array(ab);
+    for (let i = 0; i < buf.length; ++i) {
+      buf[i] = view[i];
+    }
+    return buf;
+  }
+
   const allModels = await Promise.all(
     models.map(async (model) => {
       const path = `/models/player/${model}/${model}`;
-      const bmpUrl = `/models/${model}/${model}.bmp`;
-      const mdlUrl = `/models/${model}/${model}.mdl`;
+      const bmpUrl = `/models/player/${model}/${model}.bmp`;
+      const mdlUrl = `/models/player/${model}/${model}.mdl`;
 
       const bmp = await fetch(MIRROR_BASE_URL + "/static" + bmpUrl)
         .catch(() => fetch(bmpUrl))
@@ -320,9 +329,7 @@ const loadAndMountGameData = async () => {
         .catch(() => fetch(mdlUrl))
         .then((resp) => resp.arrayBuffer());
 
-        window.x = bmp
-        ;
-      return [path, Buffer.from(bmp), Buffer.from(mdl)];
+      return [path, toBuffer(bmp), toBuffer(mdl)];
     })
   );
 
@@ -335,6 +342,8 @@ const loadAndMountGameData = async () => {
   FS.syncfs(false, function (err) {
     if (err) Module.print("Loading IDBFS: " + err);
     else Module.print("Saved game data to IDBFS!");
+
+    setVersion(LAST_VERSION);
     resultResolve();
   });
 
@@ -463,6 +472,7 @@ form.elements["args"].value = new URLSearchParams(location.search).get("args");
 
 form.onsubmit = (e) => {
   e.preventDefault();
+  showElement("playermodels", false);
   console.log("started");
   startXash({
     name: form.elements["player"].value || "Player",
@@ -471,18 +481,18 @@ form.onsubmit = (e) => {
   });
 };
 
-const modelPicutreOptionTemplate = ({modelName}) => `
+const modelPicutreOptionTemplate = ({ modelName }) => `
   <div class="model" data-model="${modelName}">
     <img src="models/player/${modelName}/${modelName}.bmp" alt="${modelName}_Model" class="model__cover" draggable="false">
   </div>
 `;
 const modelsPicturesContainer = document.getElementById("playermodels");
 const handleModelPictureClick = (e) => {
-  e.stopPropagation()
+  e.stopPropagation();
   const target = e.target;
   const element = target.tagName == "IMG" ? target.parentElement : target;
-  form.elements["model"].value = element.dataset.model
-}
+  form.elements["model"].value = element.dataset.model;
+};
 
 for (const model of models) {
   const opt = document.createElement("option");
@@ -490,14 +500,16 @@ for (const model of models) {
   opt.text = model;
   form.elements["model"].appendChild(opt);
 
-  let dummy = document.createElement('div');
-  dummy.innerHTML = modelPicutreOptionTemplate({modelName: model});
-  dummy.firstElementChild.addEventListener('click', handleModelPictureClick)
+  let dummy = document.createElement("div");
+  dummy.innerHTML = modelPicutreOptionTemplate({ modelName: model });
+  dummy.firstElementChild.addEventListener("click", handleModelPictureClick);
 
-  modelsPicturesContainer.prepend(dummy.firstElementChild)
+  modelsPicturesContainer.prepend(dummy.firstElementChild);
 }
 
-document.getElementById("random-model").addEventListener('click', handleModelPictureClick)
+document
+  .getElementById("random-model")
+  .addEventListener("click", handleModelPictureClick);
 
 const VERSION_KEY = "__VER";
 
