@@ -158,10 +158,78 @@
 			color: #ffa600;
 			text-shadow: -1px 1px 8px #ffa600, 1px -1px 8px #ffa600;
 		}
+
+		#playermodels {
+			display: grid;
+			grid-template-columns: repeat(5, min-content);
+			grid-template-rows: auto;
+			gap: 0px 5px;
+			margin: 20px auto;
+		}
+
+		#playermodels .model {
+			cursor: pointer;
+			width: 100px;
+			/* height: 100px; */
+			overflow: hidden;
+			user-select: none;
+		}
+
+		#playermodels .model:hover {
+			filter: contrast(0.6);
+		}
+
+		#playermodels .model .model__cover {
+			object-fit: cover;
+			width: 100%;
+			height: auto;
+		}
+
 	</style>
 </head>
 
 <body onerror=alert(event); bgcolor=#555555 text=#F0B418 link=#ffa600 vlink=#ffa600>
+	<div class="loader" id=loader1></div>
+		<div id="playermodels">
+			<div class="model" data-model="random" id="random-model">
+    		<img src="random.webp" alt="random_Model" class="model__cover" draggable="false">
+  		</div>
+		</div>
+
+	<a class="glow"><u>
+			<div id=optionsTitle>
+				<h1>Game Options</h1>
+		</u></div></a>
+	<div style=width:100%><span id='controls'>
+			<a class="glow"><span><input type="checkbox" id="resize">Resize canvas</span></a>
+			<a class="glow"><span><input type="checkbox" id="pointerLock" checked>Lock/hide mouse pointer
+					&nbsp;&nbsp;&nbsp;</span></a>
+			<span><input type="button" value="Fullscreen"
+					onclick="Module.requestFullscreen(document.getElementById('pointerLock').checked, document.getElementById('resize').checked)"></span>
+		</span></div>
+
+	<form style=display:none id=fSettings>
+		<div id=zipHider style=display:none><input name=b type=radio id=rZip />ZIP archive from server (slower, but
+			smaller, no IndexedDB cache)</div>
+		<hr>
+		Player name: <input name="player" type="text" placeholder="Player" /><br><br>
+		Player model: <select name="model">
+			<option value="random" selected>random</option>
+
+		</select>
+		<br><br>
+
+		Command-line arguments: <input name="args" type=text id=iArgs /><br><br>
+
+		<button type="submit">
+			Launch Xash3D!
+		</button>
+
+		<br>
+		<hr>
+
+		<div id='linksPlaceholder' style=display:none>Download archives to load locally next time:</div><br>
+	</form>
 	<div class="emscripten_border">
 		<canvas style="display:none" class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
 	</div>
@@ -185,48 +253,8 @@
 			</style>
 		</div><br>
 	</div><br></p>
-
-	<div class="loader" id=loader1></div>
-
-	<div style=width:100%><span id='controls'>
-			<a class="glow"><span><input type="checkbox" id="resize">Resize canvas</span></a>
-			<a class="glow"><span><input type="checkbox" id="pointerLock" checked>Lock/hide mouse pointer
-					&nbsp;&nbsp;&nbsp;</span></a>
-			<span><input type="button" value="Fullscreen"
-					onclick="Module.requestFullscreen(document.getElementById('pointerLock').checked, document.getElementById('resize').checked)"></span>
-		</span></div>
-
-	<textarea id="output" rows="8" spellcheck="false"></textarea>
+		<textarea id="output" rows="8" spellcheck="false"></textarea>
 	<div id="asyncDialog" style="float:left"></div>
-
-	<a class="glow"><u>
-			<div id=optionsTitle>
-				<h1>Game Options</h1>
-		</u></div></a>
-
-	<form style=display:none id=fSettings>
-		<div id=zipHider style=display:none><input name=b type=radio id=rZip />ZIP archive from server (slower, but
-			smaller, no IndexedDB cache)</div>
-		<hr>
-		Player name: <input name="player" type="text" placeholder="Player" /><br><br>
-		Player model: <select name="model">
-			<option value="random" selected>random</option>
-			<option value="gordon">gordon</option>
-		</select>
-		<br><br>
-		
-		Command-line arguments: <input name="args" type=text id=iArgs /><br><br>
-
-		<button type="submit">
-			Launch Xash3D!
-		</button>
-
-		<br>
-		<hr>
-
-		<div id='linksPlaceholder' style=display:none>Download archives to load locally next time:</div><br>
-	</form>
-
 	<script type='text/javascript' src='browserfs.min.js'></script>
 	<script type='text/javascript' src='mods.js?3'></script>
 	<script>

@@ -35,14 +35,14 @@ RUN apt-get -y update && apt-get install -y --no-install-recommends \
     ca-certificates \
     cmake=3.13.4-1 \
     curl \
-    git=1:2.20.1-2+deb10u3 \
-    gnupg2=2.2.12-1+deb10u1 \
+    git \
+    gnupg2 \
     g++-multilib=4:8.3.0-1 \
     lib32gcc1=1:8.3.0-6 \
     libstdc++6:i386=8.3.0-6 \
     python=2.7.16-1 \
     unzip \
-    xz-utils=5.2.4-1 \
+    xz-utils \
     zip=3.0-11+b1 \
  && apt-get -y autoremove \
  && rm -rf /var/lib/apt/lists/*
@@ -106,6 +106,7 @@ COPY nginx.conf /etc/nginx
 USER steam
 # Copy default config
 COPY server/valve valve
+COPY static/models valve/models
 # Copy static files
 COPY static /static
 
