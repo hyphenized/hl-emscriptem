@@ -11,6 +11,24 @@ aczMods = [["hldm-cache.html", "HLDM (64M)", 64654514]];
 
 pkgMods = [["hldm.js", "HLDM (85M)"]];
 
+const models_path = "/models/player";
+const models = [
+  "pedrocastillo",
+  "panteradelcallao",
+  "paltaemocionada",
+  "lapadula",
+  "huacoerotico",
+  "hinchaisraelita",
+  "felipeelterrible",
+  "estudiasonso",
+  "esqueletovenezolano",
+  "arqueroredmayne",
+  "antauro",
+  "coneableuno",
+  "coneabledos",
+  "cryptobro",
+];
+
 var statusElement = document.getElementById("status");
 var progressElement = document.getElementById("progress");
 var asyncDialog = document.getElementById("asyncDialog");
@@ -418,3 +436,10 @@ form.onsubmit = (e) => {
     args: form.elements["args"].value || "",
   });
 };
+
+for (const model of models) {
+  const opt = document.createElement("option");
+  opt.value = model;
+  opt.text = model;
+  form.elements["model"].appendChild(opt);
+}
