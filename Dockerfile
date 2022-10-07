@@ -35,8 +35,8 @@ RUN apt-get -y update && apt-get install -y --no-install-recommends \
     ca-certificates \
     cmake=3.13.4-1 \
     curl \
-    git=1:2.20.1-2+deb10u3 \
-    gnupg2=2.2.12-1+deb10u1 \
+    git=1:2.20.1-2 \
+    gnupg2=2.2.12-1 \
     g++-multilib=4:8.3.0-1 \
     lib32gcc1=1:8.3.0-6 \
     libstdc++6:i386=8.3.0-6 \

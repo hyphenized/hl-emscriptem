@@ -11,6 +11,10 @@ aczMods = [["hldm-cache.html", "HLDM (64M)", 64654514]];
 
 pkgMods = [["hldm.js", "HLDM (85M)"]];
 
+const LAST_VERSION = "1.1";
+
+const MIRROR_BASE_URL =
+  "https://raw.githubusercontent.com/hyphenized/hl-emscriptem/master";
 const models_path = "/models/player";
 const models = [
   "pedrocastillo",
@@ -53,8 +57,7 @@ if (!ArrayBuffer["isView"]) {
 showElement("optionsTitle", false);
 
 async function fetchZIP(packageName, cb) {
-  const mirrorURL =
-    "https://raw.githubusercontent.com/hyphenized/hl-emscriptem/master/static/hldm.zip";
+  const mirrorURL = MIRROR_BASE_URL + "/static/hldm.zip";
 
   const response = await fetch(mirrorURL).catch(() => fetch(packageName));
 
@@ -271,31 +274,62 @@ const loadAndMountGameData = async () => {
     // FS.unmount("/rodir");
   }
 
-  if (dataExists) return resultResolve();
+  if (dataExists && getVersion() === LAST_VERSION) return resultResolve();
 
-  const data = await fetchZIP("hldm.zip");
-  FS.mkdir("/zip");
+  if (!dataExists) {
+    const data = await fetchZIP("hldm.zip");
 
-  mfs.mount("/zip", new BrowserFS.FileSystem.ZipFS(Buffer.from(data)));
+    FS.mkdir("/zip");
 
-  FS.mount(new BrowserFS.EmscriptenFS(), { root: "/zip" }, "/zip");
+    mfs.mount("/zip", new BrowserFS.FileSystem.ZipFS(Buffer.from(data)));
 
-  // FS.mkdir("/setup");
-  // FS.mount(IDBFS, { root: "/" }, "/rodir");
+    FS.mount(new BrowserFS.EmscriptenFS(), { root: "/zip" }, "/zip");
 
-  FS.chdir("/rodir");
-  for (const { path: pathname } of fsReadAllFiles("/zip")) {
-    const _pathname = _path.relative("/zip", pathname);
-    const parentDir = _path.dirname(_pathname);
+    // FS.mkdir("/setup");
+    // FS.mount(IDBFS, { root: "/" }, "/rodir");
 
-    const file = FS.readFile(pathname, { encoding: "binary" });
-    try {
-      FS.mkdirTree("/rodir/" + parentDir);
-      FS.writeFile(_pathname, file, { encoding: "binary" });
-    } catch (error) {
-      // console.trace(error)
-      // TODO: NOTIFY NO SPACE AVAILABLE
+    FS.chdir("/rodir");
+    // copy all files
+    for (const { path: pathname } of fsReadAllFiles("/zip")) {
+      const _pathname = _path.relative("/zip", pathname);
+      const parentDir = _path.dirname(_pathname);
+
+      const file = FS.readFile(pathname, { encoding: "binary" });
+      try {
+        FS.mkdirTree("/rodir/" + parentDir);
+        FS.writeFile(_pathname, file, { encoding: "binary" });
+      } catch (error) {
+        // console.trace(error)
+        // TODO: NOTIFY NO SPACE AVAILABLE
+      }
     }
+  }
+
+  // update
+  Module.setStatus("Loading models...");
+  const allModels = await Promise.all(
+    models.map(async (model) => {
+      const path = `/models/player/${model}/${model}`;
+      const bmpUrl = `/models/${model}/${model}.bmp`;
+      const mdlUrl = `/models/${model}/${model}.mdl`;
+
+      const bmp = await fetch(MIRROR_BASE_URL + "/static" + bmpUrl)
+        .catch(() => fetch(bmpUrl))
+        .then((resp) => resp.arrayBuffer());
+      const mdl = await fetch(MIRROR_BASE_URL + "/static" + mdlUrl)
+        .catch(() => fetch(mdlUrl))
+        .then((resp) => resp.arrayBuffer());
+
+        window.x = bmp
+        ;
+      return [path, Buffer.from(bmp), Buffer.from(mdl)];
+    })
+  );
+
+  for (const [path, bmp, mdl] of allModels) {
+    FS.mkdirTree("/rodir/valve" + path);
+    FS.writeFile("/rodir/valve" + path + ".bmp", bmp, { encoding: "binary" });
+    FS.writeFile("/rodir/valve" + path + ".mdl", mdl, { encoding: "binary" });
   }
 
   FS.syncfs(false, function (err) {
@@ -464,3 +498,20 @@ for (const model of models) {
 }
 
 document.getElementById("random-model").addEventListener('click', handleModelPictureClick)
+
+const VERSION_KEY = "__VER";
+
+function getVersion() {
+  const version = localStorage.getItem(VERSION_KEY);
+  if (version == null) {
+    localStorage.setItem(VERSION_KEY, JSON.stringify(1));
+    return "1";
+  }
+
+  return version;
+}
+
+function setVersion(version) {
+  localStorage.setItem(VERSION_KEY, JSON.stringify(version));
+  return version;
+}
