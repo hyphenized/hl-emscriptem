@@ -447,7 +447,6 @@ const handleModelPictureClick = (e) => {
   e.stopPropagation()
   const target = e.target;
   const element = target.tagName == "IMG" ? target.parentElement : target;
-
   form.elements["model"].value = element.dataset.model
 }
 
@@ -463,3 +462,5 @@ for (const model of models) {
 
   modelsPicturesContainer.prepend(dummy.firstElementChild)
 }
+
+document.getElementById("random-model").addEventListener('click', handleModelPictureClick)
